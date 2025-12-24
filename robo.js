@@ -11,7 +11,7 @@ const client = new Client({
     dataPath: "./.wwebjs_auth"
   }),
   puppeteer: {
-    headless: true, // Modo headless normal
+    headless: true,
     args: [
       "--no-sandbox",
       "--disable-setuid-sandbox",
@@ -26,7 +26,7 @@ const client = new Client({
   },
   webVersionCache: {
     type: 'remote',
-    remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2412.54.html'
+    remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.3000.1017542676.html'
   }
 });
 
@@ -155,12 +155,30 @@ const limparConversaEstado = (numero) => {
   console.log(`🔄 Estado limpo: ${numero}`);
 };
 
+// FUNÇÃO CORRIGIDA: isContatoSalvo
 const isContatoSalvo = async (msg) => {
   try {
-    const contact = await msg.getContact();
-    return contact.isMyContact || (contact.name && contact.name !== contact.number);
+    // Método simplificado e mais confiável
+    const chat = await msg.getChat();
+    
+    // Verifica se é um chat individual (não grupo)
+    if (chat.isGroup) return false;
+    
+    // Tenta obter o contato
+    const contact = await chat.getContact();
+    
+    // Verifica se tem informações de contato
+    const isContact = await contact.isContact().catch(() => false);
+    
+    // Verifica se tem nome personalizado
+    const hasName = contact.name && 
+                   contact.name.trim() !== '' && 
+                   !contact.name.includes('@c.us');
+    
+    return isContact || hasName;
   } catch (error) {
-    console.error("❌ Erro ao verificar contato:", error.message);
+    console.log("⚠️  Usando fallback para verificação de contato");
+    // Fallback seguro: sempre tratar como novo contato
     return false;
   }
 };
@@ -231,15 +249,24 @@ async function voltarMenuAnterior(msg, chat, numero, estado) {
   const contatoSalvo = await isContatoSalvo(msg);
   
   if (contatoSalvo) {
-    const contact = await msg.getContact();
-    const nomeContato = contact.name || contact.pushname || "Princesa";
-    
-    await client.sendMessage(
-      msg.from,
-      `${saudacao}, ${nomeContato}! 💖\n\nVocê voltou ao menu principal!\n\n✨ *Como posso te ajudar hoje?* ✨\n\n*Escolha uma opção:*\n\n💬  *1* - Falar com a Raquel\n\n📅  *2* - Agendar/Cancelar/Alterar horário\n\n💰  *3* - Ver tabela de valores\n\n🔧  *4* - Solicitar reparo de unha\n\n💅  *5* - Inspiração para designs\n\n*Digite 0, "voltar" ou "menu" para voltar.*`
-    );
-    
-    setConversaEstado(numero, { tipo: "menu_principal" });
+    try {
+      const contact = await msg.getContact();
+      const nomeContato = contact.name || contact.pushname || "Princesa";
+      
+      await client.sendMessage(
+        msg.from,
+        `${saudacao}, ${nomeContato}! 💖\n\nVocê voltou ao menu principal!\n\n✨ *Como posso te ajudar hoje?* ✨\n\n*Escolha uma opção:*\n\n💬  *1* - Falar com a Raquel\n\n📅  *2* - Agendar/Cancelar/Alterar horário\n\n💰  *3* - Ver tabela de valores\n\n🔧  *4* - Solicitar reparo de unha\n\n💅  *5* - Inspiração para designs\n\n*Digite 0, "voltar" ou "menu" para voltar.*`
+      );
+      
+      setConversaEstado(numero, { tipo: "menu_principal" });
+    } catch (error) {
+      // Fallback em caso de erro
+      await client.sendMessage(
+        msg.from,
+        `${saudacao}! 💖\n\nVocê voltou ao menu principal!\n\n✨ *Como posso te ajudar hoje?* ✨\n\n*Escolha uma opção:*\n\n💬  *1* - Falar com a Raquel\n\n📅  *2* - Agendar/Cancelar/Alterar horário\n\n💰  *3* - Ver tabela de valores\n\n🔧  *4* - Solicitar reparo de unha\n\n💅  *5* - Inspiração para designs\n\n*Digite 0, "voltar" ou "menu" para voltar.*`
+      );
+      setConversaEstado(numero, { tipo: "menu_principal" });
+    }
   } else {
     await client.sendMessage(
       msg.from,
@@ -257,16 +284,25 @@ async function mostrarMenuInicial(msg, chat, saudacao, contatoSalvo) {
   await simularDigitacao(chat, TEMPO_RESPOSTA);
 
   if (contatoSalvo) {
-    const contact = await msg.getContact();
-    const nomeContato = contact.name || contact.pushname || "Minha Princesa";
+    try {
+      const contact = await msg.getContact();
+      const nomeContato = contact.name || contact.pushname || "Minha Princesa";
 
-    await client.sendMessage(
-      numero,
-      `${saudacao}, ${nomeContato}! 💕\n\nSeja bem-vinda de volta! Sou a assistente virtual da Raquel! 💅\n\n✨ *Como posso te ajudar hoje?* ✨\n\n*Escolha uma opção:*\n\n💬  *1* - Falar com a Raquel\n\n📅  *2* - Agendar/Cancelar/Alterar horário\n\n💰  *3* - Ver tabela de valores\n\n🔧  *4* - Solicitar reparo de unha\n\n💅  *5* - Inspiração para designs\n\n*Digite 0, "voltar" ou "menu" para voltar.*`
-    );
+      await client.sendMessage(
+        numero,
+        `${saudacao}, ${nomeContato}! 💕\n\nSeja bem-vinda de volta! Sou a assistente virtual da Raquel! 💅\n\n✨ *Como posso te ajudar hoje?* ✨\n\n*Escolha uma opção:*\n\n💬  *1* - Falar com a Raquel\n\n📅  *2* - Agendar/Cancelar/Alterar horário\n\n💰  *3* - Ver tabela de valores\n\n🔧  *4* - Solicitar reparo de unha\n\n💅  *5* - Inspiração para designs\n\n*Digite 0, "voltar" ou "menu" para voltar.*`
+      );
 
-    setConversaEstado(numero, { tipo: "menu_principal" });
-    console.log(`💾 Estado salvo: ${numero} - menu_principal`);
+      setConversaEstado(numero, { tipo: "menu_principal" });
+      console.log(`💾 Estado salvo: ${numero} - menu_principal`);
+    } catch (error) {
+      // Fallback para erro
+      await client.sendMessage(
+        numero,
+        `${saudacao}! ✨\n\nSeja bem-vinda! Sou a assistente virtual da Raquel! 💅\n\nQue alegria ter você! 💕\n\n*Vou fazer algumas perguntas para agilizar.*\n\n🌸 *Qual é o seu nome completo?* 🌸\n\nDigite seu nome para continuar.\n\n*Digite 0, "voltar" ou "menu" para voltar.*`
+      );
+      setConversaEstado(numero, { tipo: "cadastro", etapa: "nome" });
+    }
   } else {
     await client.sendMessage(
       numero,
@@ -518,6 +554,13 @@ client.on("qr", (qr) => {
   console.log("\n" + "💅".repeat(25));
   console.log("📱 ESCANEIE O QR CODE");
   console.log("💅".repeat(25) + "\n");
+  
+  // Salva o QR code em arquivo para facilitar acesso remoto
+  const qrTextPath = "./qrcode.txt";
+  fs.writeFileSync(qrTextPath, qr);
+  console.log(`📄 QR code salvo em: ${qrTextPath}`);
+  console.log(`💡 Para acessar: scp seu_usuario@ip_da_vps:${qrTextPath} .`);
+  
   qrcode.generate(qr, { small: true });
   console.log("\n" + "✨".repeat(25));
   console.log("1. Abra o WhatsApp");
@@ -562,14 +605,14 @@ client.on("message", async (msg) => {
   try {
     console.log(`\n${"💅".repeat(25)}`);
     console.log(`📥 DE: ${msg.from}`);
-    console.log(`📝 "${msg.body.substring(0, 50)}${msg.body.length > 50 ? '...' : ''}"`);
+    console.log(`📝 "${msg.body ? msg.body.substring(0, 50) : '[MÍDIA]'}${msg.body && msg.body.length > 50 ? '...' : ''}"`);
     console.log(`${"💅".repeat(25)}`);
 
     if (msg.fromMe) return;
     if (msg.from.includes("@g.us")) return;
 
     const numero = msg.from;
-    const mensagem = msg.body.toLowerCase().trim();
+    const mensagem = msg.body ? msg.body.toLowerCase().trim() : '';
     const chat = await msg.getChat();
 
     const estadoConversa = getConversaEstado(numero);
@@ -593,7 +636,7 @@ client.on("message", async (msg) => {
       }
     }
 
-    if (!palavraEncontrada) return;
+    if (!palavraEncontrada && mensagem) return;
 
     if (verificarPeriodo24h(numero)) {
       console.log(`⏳ ${numero} - Período de 24h ativo`);
@@ -611,7 +654,7 @@ client.on("message", async (msg) => {
 
     await mostrarMenuInicial(msg, chat, saudacao, contatoSalvo);
   } catch (error) {
-    console.error("❌ Erro:", error.message);
+    console.error("❌ Erro no processamento da mensagem:", error.message);
   }
 });
 
